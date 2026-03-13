@@ -1,8 +1,6 @@
 <template>
   <Provider>
-    <!-- 壁纸 -->
     <Cover @loadComplete="loadComplete" />
-    <!-- 主界面 -->
     <Transition name="fade" mode="out-in">
       <main
         v-if="status.imgLoadStatus"
@@ -18,7 +16,22 @@
         <SearchInp @contextmenu.stop />
         <AllFunc @contextmenu.stop />
         <Footer />
-        <!-- 状态切换 -->
+        
+        <Transition name="fade">
+          <div
+            class="top-right-menu"
+            title="打开捷径与便签"
+            v-show="status.siteStatus === 'normal' || status.siteStatus === 'focus'"
+            @click.stop="status.setSiteStatus('box')"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="5" cy="12" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="19" cy="12" r="2"></circle>
+            </svg>
+          </div>
+        </Transition>
+
         <Transition name="fade">
           <div
             class="all-controls"
@@ -195,6 +208,34 @@ onMounted(() => {
       &:active {
         transform: scale(0.95);
       }
+    }
+  }
+  
+  /* 新增：右上角三个点菜单的样式 */
+  .top-right-menu {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    cursor: pointer;
+    color: var(--main-text-color);
+    opacity: 0.6;
+    z-index: 99;
+    transition: opacity 0.3s, background-color 0.3s, transform 0.3s;
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:hover {
+      opacity: 1;
+      backdrop-filter: blur(20px);
+      background-color: var(--main-background-light-color);
+      transform: scale(1.05);
+    }
+    
+    &:active {
+      transform: scale(0.95);
     }
   }
 }
