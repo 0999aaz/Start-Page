@@ -3,7 +3,7 @@
     <div class="copyright">
       <span class="site-name">{{ siteName }}</span>
       <span class="year">{{ fullYear }}</span>
-      <span class="anthor" @click="jumpTo(copyrightLink ?? 'https://github.com/imsyy/Snavigation')">
+      <span class="anthor" @click="jumpTo(copyrightLink ?? 'https://0999aaz.top')">
         {{ siteAnthor }}
       </span>
       <span v-if="icp" class="icp" @click="jumpTo('https://beian.miit.gov.cn')">
@@ -11,7 +11,6 @@
       </span>
       <span class="about" @click="aboutSiteModal = true">关于</span>
     </div>
-    <!-- 关于 -->
     <n-modal
       preset="card"
       :bordered="false"
@@ -23,13 +22,21 @@
           <span class="name">{{ siteName }}</span>
           <span class="version">v {{ packageJson.version }}</span>
         </div>
+        
         <div class="desc">
+          <p style="text-align: center; margin-bottom: 15px; font-size: 14px; opacity: 0.8;">
+            这是一个致力于聚合实时热点、资讯与常用网址的个人专属起始页。
+          </p>
           <n-space class="link" justify="center">
-            <n-button strong secondary @click="jumpTo('https://github.com/imsyy/Snavigation')">
-              Github
+            <n-button strong secondary @click="jumpTo('https://www.0999aaz.cn/')">
+              我的主页
+            </n-button>
+            <n-button strong secondary @click="jumpTo('https://github.com/0999aaz')">
+              GitHub 主页
             </n-button>
           </n-space>
         </div>
+
       </div>
     </n-modal>
   </footer>
