@@ -49,9 +49,9 @@ const fetchMovies = async () => {
     // 【进阶指南】
     // 如果你想让它每天自动更新，请去 https://www.themoviedb.org/ 注册并申请一个免费的 API Key
     // 然后将下方的 "YOUR_TMDB_API_KEY" 替换成你申请到的字母数字串
-    const apiKey = "YOUR_TMDB_API_KEY"; 
+    const apiKey = "ad4a13d21e40800292ac5df94c4f4d91"; 
 
-    if (apiKey !== "YOUR_TMDB_API_KEY") {
+    if (apiKey !== "ad4a13d21e40800292ac5df94c4f4d91") {
       // 如果你配置了 Key，就去拉取全球当天的热门电影和剧集
       const response = await fetch(`https://api.themoviedb.org/3/trending/all/day?api_key=${apiKey}&language=zh-CN`);
       const data = await response.json();
