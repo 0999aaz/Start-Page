@@ -6,9 +6,10 @@ const useSetDataStore = defineStore("setData", {
       // 主题类别
       themeType: "light",
       // 壁纸类别
-      // 0 本地 / 1 必应 / 2 随机风景 / 3 随机动漫 / 4 自定义
+      // 0 本地 / 1 必应 / 2 随机风景 / 3 随机动漫 / 4 自定义URL / 5 本地上传
       backgroundType: 2,
       backgroundCustom: "",
+      uploadedBackground: "", // 新增：保存用户上传的本地壁纸
       // 壁纸遮罩
       showBackgroundGray: true,
       // 壁纸模糊
