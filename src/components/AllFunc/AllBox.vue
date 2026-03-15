@@ -3,15 +3,20 @@
     <n-tab-pane class="no-padding height--full" name="link" tab="捷径">
       <ShortCut />
     </n-tab-pane>
-    <n-tab-pane name="note" tab="便签"> 即将完善 </n-tab-pane>
-    <n-tab-pane name="more" tab="待办"> 还能有啥呢 😢 </n-tab-pane>
+    
+    <n-tab-pane class="no-padding height--full" name="recommend" tab="推荐">
+      <DailyRecommend />
+    </n-tab-pane>
   </n-tabs>
 </template>
 
 <script setup>
 import { NTabs, NTabPane } from "naive-ui";
 import ShortCut from "@/components/AllFunc/Box/ShortCut.vue";
+// 引入刚刚新建的每日推荐组件
+import DailyRecommend from "@/components/AllFunc/Box/DailyRecommend.vue";
 </script>
+
 <style>
 .height--full {
   height: 100%;
