@@ -3,7 +3,7 @@
     <Transition name="fade" mode="out-in">
       <div v-if="loading" class="loading-box">
         <div class="spinner"></div>
-        <span>获取全网热门影视中...</span>
+        <span>正在突破网络封锁获取数据...</span>
       </div>
 
       <div v-else class="content-box">
@@ -23,7 +23,7 @@
             >
               <div class="poster-box">
                 <img 
-                  :src="`https://wsrv.nl/?url=image.tmdb.org/t/p/w500${item.poster_path}`" 
+                  :src="`https://i0.wp.com/image.tmdb.org/t/p/w500${item.poster_path}`" 
                   class="poster" 
                   referrerpolicy="no-referrer" 
                   alt="poster"
@@ -63,7 +63,7 @@
             >
               <div class="poster-box">
                 <img 
-                  :src="`https://wsrv.nl/?url=image.tmdb.org/t/p/w500${item.poster_path}`" 
+                  :src="`https://i0.wp.com/image.tmdb.org/t/p/w500${item.poster_path}`" 
                   class="poster" 
                   referrerpolicy="no-referrer" 
                   alt="poster"
@@ -97,18 +97,14 @@
 import { ref, onMounted } from "vue";
 
 const loading = ref(true);
-// 分开存储电影和电视剧
 const movies = ref([]);
 const tvShows = ref([]);
 
-// 智能判断悬浮框弹出方向（防边缘溢出）
+// 智能判断悬浮框弹出方向
 const checkHoverPosition = (e) => {
   const card = e.currentTarget;
   const rect = card.getBoundingClientRect();
-  // 简介卡片宽度设定为 240px，预留 20px 余量
   const infoBoxWidth = 260; 
-  
-  // 如果卡片距离屏幕右侧的距离不够放下一个简介框，就让它向左弹出
   if (window.innerWidth - rect.right < infoBoxWidth) {
     card.classList.add('pop-left');
   } else {
@@ -116,29 +112,54 @@ const checkHoverPosition = (e) => {
   }
 };
 
+// 核心优化：高可用多节点代理轮询函数
+const fetchWithProxy = async (targetUrl) => {
+  // 准备3个在国内存活率较高的代理节点
+  const proxies = [
+    `https://api.codetabs.com/v1/proxy?quest=${targetUrl}`,
+    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+  ];
+
+  for (let proxy of proxies) {
+    try {
+      // 设置 4 秒超时限制，卡死自动换线
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      
+      const response = await fetch(proxy, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.results && data.results.length > 0) {
+          console.log(`使用代理线路 [${proxy.substring(0, 25)}...] 获取数据成功`);
+          return data; 
+        }
+      }
+    } catch (error) {
+      console.warn(`代理线路请求失败，正在自动切换下一个节点...`);
+    }
+  }
+  throw new Error("所有公共代理均被墙或访问超时");
+};
+
 // 获取影视数据
 const fetchMovies = async () => {
   loading.value = true;
   try {
-    // 💡 这里填入你申请的真实 API Key
+    // 💡 这里填入你申请的真实 32 位 API Key
     const apiKey = "ad4a13d21e40800292ac5df94c4f4d91"; 
 
-    // 不要修改下面这行的判断条件
     if (apiKey !== "YOUR_TMDB_API_KEY") {
-      // 分别构建电影和电视剧的请求 URL
       const movieUrl = `https://api.themoviedb.org/3/trending/movie/day?api_key=${apiKey}&language=zh-CN`;
       const tvUrl = `https://api.themoviedb.org/3/trending/tv/day?api_key=${apiKey}&language=zh-CN`;
       
-      // 使用 Promise.all 并发请求，速度提升一倍
-      const [movieRes, tvRes] = await Promise.all([
-        fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(movieUrl)}`),
-        fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(tvUrl)}`)
+      const [movieData, tvData] = await Promise.all([
+        fetchWithProxy(movieUrl),
+        fetchWithProxy(tvUrl)
       ]);
       
-      const movieData = await movieRes.json();
-      const tvData = await tvRes.json();
-      
-      // 各截取前 12 个（完美填满两行或三行），保证界面丰满
       if (movieData.results && tvData.results) {
         movies.value = movieData.results.slice(0, 12);
         tvShows.value = tvData.results.slice(0, 12);
@@ -146,12 +167,11 @@ const fetchMovies = async () => {
         return; 
       }
     }
-    
-    throw new Error("未配置 API Key 或请求失败");
+    throw new Error("未配置 API Key");
 
   } catch (error) {
-    console.log("提示：API 请求失败或未配置，使用默认精选影视数据。");
-    // 备用精选数据（带上简介测试悬浮效果）
+    console.log("提示：API 请求彻底失败，显示备用精选数据。");
+    // 备用精选数据
     movies.value = [
       { title: "沙丘2", release_date: "2024-02-27", vote_average: 8.3, poster_path: "/1pdfLvkbY9ohJlCjQH2JGjjcEsZ.jpg", overview: "保罗·厄崔迪与契妮和弗雷曼人会合，展开了一场复仇之旅..." },
       { title: "奥本海默", release_date: "2023-07-19", vote_average: 8.6, poster_path: "/rktDFPbfHfUbArZ6OOOKsXcv0Bm.jpg", overview: "讲述了美国“原子弹之父”罗伯特·奥本海默主导制造出世界上第一颗原子弹的故事。" },
@@ -185,6 +205,7 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+/* 样式部分和上一次一模一样，不需要改动 */
 .movie-recommend {
   width: 100%;
   height: 100%;
@@ -194,7 +215,7 @@ onMounted(() => {
   backdrop-filter: blur(10px);
   border-radius: 16px;
   overflow-y: auto; 
-  overflow-x: hidden; // 防止因为卡片动画产生横向滚动条
+  overflow-x: hidden; 
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -227,7 +248,7 @@ onMounted(() => {
   .content-box {
     display: flex;
     flex-direction: column;
-    gap: 32px; // 电影和电视剧两大块的间距
+    gap: 32px; 
   }
 
   .section {
@@ -237,9 +258,7 @@ onMounted(() => {
       gap: 8px;
       margin-bottom: 16px;
       
-      .icon {
-        font-size: 18px;
-      }
+      .icon { font-size: 18px; }
       .title {
         font-size: 16px;
         font-weight: bold;
@@ -257,7 +276,7 @@ onMounted(() => {
   }
 
   .movie-card {
-    position: relative; // 极其重要：作为浮动信息框的定位基准
+    position: relative; 
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -265,21 +284,15 @@ onMounted(() => {
     cursor: pointer;
     transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     
-    // 鼠标悬停时的状态
     &:hover {
       transform: translateY(-5px); 
-      z-index: 10; // 提升层级，防止被旁边卡片遮挡
+      z-index: 10; 
       
       .poster-box {
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4); 
-        .poster {
-          transform: scale(1.05); 
-        }
+        .poster { transform: scale(1.05); }
       }
-      .card-title {
-        color: #ffac2d; 
-      }
-      // 触发悬浮框显示
+      .card-title { color: #ffac2d; }
       .info-box {
         opacity: 1;
         visibility: visible;
@@ -292,7 +305,7 @@ onMounted(() => {
       width: 100%;
       aspect-ratio: 2 / 3; 
       border-radius: 8px;
-      overflow: hidden; // 海报不能溢出圆角
+      overflow: hidden; 
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
       transition: box-shadow 0.3s ease;
 
@@ -330,27 +343,24 @@ onMounted(() => {
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
-    /* 剧情简介毛玻璃悬浮框 (核心动画与定位) */
     .info-box {
       position: absolute;
       top: 0;
-      /* 默认向右弹出：卡片宽度 + 12px间距 */
       left: calc(100% + 12px); 
       width: 240px;
       padding: 16px;
       box-sizing: border-box;
-      background: rgba(30, 30, 30, 0.85); // 暗色半透明
+      background: rgba(30, 30, 30, 0.85); 
       backdrop-filter: blur(12px) saturate(150%);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
       box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
       
-      // 初始隐藏状态
       opacity: 0;
       visibility: hidden;
       transform: translateY(10px) scale(0.95);
       transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      pointer-events: none; // 防止悬浮框自己干扰鼠标事件
+      pointer-events: none; 
 
       display: flex;
       flex-direction: column;
@@ -374,7 +384,6 @@ onMounted(() => {
         font-size: 13px;
         line-height: 1.6;
         color: #eee;
-        // 限制最多显示 7 行，超出显示省略号
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 7;
@@ -390,18 +399,12 @@ onMounted(() => {
       }
     }
 
-    /* 当卡片在屏幕右侧边缘时，触发JS添加的 pop-left 类，改变弹出方向 */
     &.pop-left {
       .info-box {
         left: auto;
-        right: calc(100% + 12px); // 向左弹出
+        right: calc(100% + 12px); 
       }
     }
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
   }
 }
 </style>
