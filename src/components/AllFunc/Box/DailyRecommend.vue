@@ -15,7 +15,7 @@
         >
           <div class="poster-box">
             <img 
-              :src="`https://image.tmdb.org/t/p/w500${item.poster_path}`" 
+              :src="`https://wsrv.nl/?url=image.tmdb.org/t/p/w500${item.poster_path}`" 
               class="poster" 
               referrerpolicy="no-referrer" 
               alt="poster"
@@ -39,34 +39,38 @@ import { ref, onMounted, computed } from "vue";
 const loading = ref(true);
 const movies = ref([]);
 
-// 控制显示数量，起始页空间有限，展示 8 个刚刚好排成两行或一行
+// 控制显示数量，展示 8 个刚刚好排成两行或一行
 const displayMovies = computed(() => movies.value.slice(0, 8));
 
 // 获取影视数据
 const fetchMovies = async () => {
   loading.value = true;
   try {
-    // 【进阶指南】
-    // 如果你想让它每天自动更新，请去 https://www.themoviedb.org/ 注册并申请一个免费的 API Key
-    // 然后将下方的 "YOUR_TMDB_API_KEY" 替换成你申请到的字母数字串
+    // 填入你刚才申请的 API Key
     const apiKey = "ad4a13d21e40800292ac5df94c4f4d91"; 
 
-    if (apiKey !== "ad4a13d21e40800292ac5df94c4f4d91") {
-      // 如果你配置了 Key，就去拉取全球当天的热门电影和剧集
-      const response = await fetch(`https://api.themoviedb.org/3/trending/all/day?api_key=${apiKey}&language=zh-CN`);
+    if (apiKey !== "YOUR_TMDB_API_KEY") {
+      // 目标 API 地址
+      const targetUrl = `https://api.themoviedb.org/3/trending/all/day?api_key=${apiKey}&language=zh-CN`;
+      
+      // 核心修复：使用 AllOrigins 代理请求，绕过国内对 TMDB API 的网络屏蔽
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+      
+      const response = await fetch(proxyUrl);
       const data = await response.json();
+      
       if (data.results) {
         movies.value = data.results;
         loading.value = false;
         return; // 成功获取则直接退出函数
       }
     }
-    // 如果没配置 Key，主动抛出错误，进入下方的 catch 备用数据块
-    throw new Error("未配置 API Key");
+    
+    throw new Error("未配置 API Key 或请求失败");
 
   } catch (error) {
-    console.log("提示：使用默认精选影视数据。若需每日自动更新，请配置 TMDB API Key。");
-    // 🎨 兜底精选数据（使用了真实的 TMDB 海报路径，确保你立刻就能看到完美效果）
+    console.log("提示：API 请求失败或未配置，使用默认精选影视数据。");
+    // 兜底精选数据
     movies.value = [
       { title: "沙丘2", poster_path: "/1pdfLvkbY9ohJlCjQH2JGjjcEsZ.jpg", vote_average: 8.3 },
       { title: "奥本海默", poster_path: "/rktDFPbfHfUbArZ6OOOKsXcv0Bm.jpg", vote_average: 8.6 },
@@ -82,7 +86,7 @@ const fetchMovies = async () => {
   }
 };
 
-// 点击卡片：直接带上电影名字跳转到豆瓣搜索页面
+// 点击卡片：带上电影名字跳转到豆瓣搜索页面
 const toDouban = (keyword) => {
   if (keyword) {
     window.open(`https://search.douban.com/movie/subject_search?search_text=${encodeURIComponent(keyword)}`, "_blank");
@@ -98,14 +102,13 @@ onMounted(() => {
 .movie-recommend {
   width: 100%;
   height: 100%;
-  padding: 16px; // 给四周留出呼吸感
+  padding: 16px; 
   box-sizing: border-box;
   background-color: var(--main-background-light-color);
   backdrop-filter: blur(10px);
   border-radius: 16px;
-  overflow-y: auto; // 如果卡片较多允许纵向滑动
+  overflow-y: auto; 
 
-  /* 隐藏滚动条让视觉更干净 */
   &::-webkit-scrollbar {
     display: none;
   }
@@ -130,12 +133,10 @@ onMounted(() => {
     }
   }
 
-  /* 核心：CSS Grid 瀑布流布局 */
   .movie-grid {
     display: grid;
-    // auto-fill 会根据父容器宽度自动计算能放下多少列，minmax(90px) 保证每张海报最小宽度
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 16px 12px; // 上下间距 16px，左右间距 12px
+    gap: 16px 12px; 
     justify-items: center;
   }
 
@@ -145,28 +146,26 @@ onMounted(() => {
     flex-direction: column;
     gap: 8px;
     cursor: pointer;
-    
-    // 悬浮时的整体上浮动画
     transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 
     &:hover {
-      transform: translateY(-5px); // 往上浮动
+      transform: translateY(-5px); 
       
       .poster-box {
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); // 悬浮阴影加深
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); 
         .poster {
-          transform: scale(1.05); // 海报图片轻微放大
+          transform: scale(1.05); 
         }
       }
       .title {
-        color: #ffac2d; // 悬浮时标题变成豆瓣橙色
+        color: #ffac2d; 
       }
     }
 
     .poster-box {
       position: relative;
       width: 100%;
-      aspect-ratio: 2 / 3; // 强制保持 2:3 的完美电影海报比例
+      aspect-ratio: 2 / 3; 
       border-radius: 8px;
       overflow: hidden;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
@@ -184,7 +183,7 @@ onMounted(() => {
         bottom: 6px;
         right: 6px;
         background: rgba(0, 0, 0, 0.75);
-        color: #ffac2d; // 豆瓣特征色
+        color: #ffac2d; 
         font-size: 12px;
         padding: 2px 6px;
         border-radius: 6px;
@@ -200,7 +199,6 @@ onMounted(() => {
       font-weight: 500;
       text-align: center;
       width: 100%;
-      // 文字超出一行自动显示省略号
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
