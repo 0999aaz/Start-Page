@@ -32,24 +32,25 @@ export const getSearchSuggestions = async (keyWord, engine = "baidu") => {
   try {
     const encodedKeyword = encodeURIComponent(keyWord);
     
-    // 谷歌搜索建议 (使用 YouTube client 支持 JSONP)
+    // 谷歌搜索建议
     if (engine === "google") {
       const response = await fetchJsonp(
         `https://suggestqueries.google.com/complete/search?client=youtube&q=${encodedKeyword}`,
-        { jsonpCallback: "jsonp" }
+        { jsonpCallback: "jsonp", timeout: 3000 }
       );
       const data = await response.json();
-      return data[1] || [];
+      // 修复核心：谷歌返回的 data[1] 是二维数组 [["我的世界", 0, [..]], ...]，这里只提取文本
+      return data[1]?.map(item => item[0]) || [];
     } 
     
     // 必应搜索建议
     else if (engine === "bing") {
       const response = await fetchJsonp(
         `https://api.bing.com/qsonhs.aspx?type=cb&q=${encodedKeyword}`,
-        { jsonpCallback: "cb" }
+        { jsonpCallback: "cb", timeout: 3000 }
       );
       const data = await response.json();
-      // 必应的数据层级较深，需要提取 Txt 字段
+      // 必应提取 Txt 字段
       return data.AS?.Results?.[0]?.Suggests?.map(item => item.Txt) || [];
     }
     
@@ -57,7 +58,7 @@ export const getSearchSuggestions = async (keyWord, engine = "baidu") => {
     else {
       const response = await fetchJsonp(
         `https://suggestion.baidu.com/su?wd=${encodedKeyword}`,
-        { jsonpCallback: "cb" }
+        { jsonpCallback: "cb", timeout: 3000 }
       );
       const data = await response.json();
       return data.s || [];
