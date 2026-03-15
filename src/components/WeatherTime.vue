@@ -1,5 +1,4 @@
 <template>
-  <!-- 天气时钟 -->
   <div
     :class="[
       'weather-time',
@@ -42,7 +41,9 @@
       <span class="day">{{ timeData.day ?? "0" }}</span>
       <span class="weekday">{{ timeData.weekday ?? "星期八" }}</span>
     </div>
+    
     <div v-if="set.showWeather" class="weather">
+      <span v-if="weatherData?.location" class="location">{{ weatherData.location }}</span>
       <span class="status">{{ weatherData?.condition ?? "N/A" }}</span>
       <span class="temperature">{{ weatherData?.temp ?? "N/A" }} ℃</span>
       <span class="wind">{{ weatherData?.windDir ?? "N/A" }}</span>
@@ -73,48 +74,58 @@ const updateTimeData = () => {
   timeData.value = getCurrentTime(set.showZeroTime, set.use12HourFormat);
 };
 
-// 获取天气数据
+// 获取天气与定位数据
 const getWeatherData = async () => {
   if (!weatherKey) {
     return $message.warning("请配置天气 Key");
   }
-  // 当前时间戳
+  
   const currentTime = Date.now();
-  // 上次获取天气数据的数据
   let lastWeatherData = JSON.parse(localStorage.getItem("lastWeatherData")) || {
     data: {},
     lastFetchTime: 0,
   };
-  // 上次获取天气数据的时间戳与当前时间的时间差（毫秒）
-  const timeDifference = currentTime - lastWeatherData.lastFetchTime;
-  // 是否超出 5 分钟
-  if (timeDifference >= 5 * 60 * 1000) {
-    const adCodeResult = await getAdcode(weatherKey);
-    if (adCodeResult.infocode !== "10000") {
-      return $message.error("地区查询失败");
+
+  // 检查缓存是否超过 5 分钟
+  if (currentTime - lastWeatherData.lastFetchTime >= 5 * 60 * 1000) {
+    try {
+      // 1. 获取定位
+      const adCodeResult = await getAdcode(weatherKey);
+      if (adCodeResult.infocode !== "10000") throw new Error("定位失败");
+
+      // 2. 获取天气
+      const weatherResult = await getWeather(weatherKey, adCodeResult.adcode);
+      if (weatherResult.infocode !== "10000") throw new Error("天气获取失败");
+
+      const data = weatherResult.lives[0];
+      
+      // 解析地理位置名称（优先取城市，城市为空则取省份）
+      const locationName = (adCodeResult.city && typeof adCodeResult.city === 'string') 
+        ? adCodeResult.city 
+        : adCodeResult.province;
+
+      // 3. 组装数据
+      weatherData.value = {
+        location: locationName,
+        condition: data.weather,
+        temp: data.temperature,
+        windDir: data.winddirection + "风",
+        windLevel: data.windpower,
+      };
+
+      // 4. 存入缓存
+      lastWeatherData = { data: weatherData.value, lastFetchTime: currentTime };
+      localStorage.setItem("lastWeatherData", JSON.stringify(lastWeatherData));
+    } catch (error) {
+      console.error(error);
+      $message.error("天气数据更新失败");
     }
-    // 获取天气数据
-    const weatherResult = await getWeather(weatherKey, adCodeResult.adcode);
-    if (weatherResult.infocode !== "10000") {
-      return $message.error("地区查询失败");
-    }
-    const data = weatherResult.lives[0];
-    weatherData.value = {
-      condition: data.weather,
-      temp: data.temperature,
-      windDir: data.winddirection + "风",
-      windLevel: data.windpower,
-    };
-    lastWeatherData = { data: weatherData.value, lastFetchTime: currentTime };
-    // 储存新天气数据
-    localStorage.setItem("lastWeatherData", JSON.stringify(lastWeatherData));
   } else {
-    console.log("从缓存中读取天气数据：", lastWeatherData);
+    // 从缓存读取
     weatherData.value = lastWeatherData.data;
   }
 };
 
-// 监听配置发生改变
 watch(
   () => [set.showZeroTime, set.use12HourFormat],
   () => {
@@ -123,10 +134,8 @@ watch(
 );
 
 onMounted(() => {
-  // 时间
   updateTimeData();
   timeInterval.value = setInterval(updateTimeData, 1000);
-  // 天气
   getWeatherData();
 });
 
@@ -145,11 +154,9 @@ onBeforeUnmount(() => {
   transform: translateY(-140px);
   color: var(--main-text-color);
   animation: fade-time-in 0.6s cubic-bezier(0.21, 0.78, 0.36, 1);
-  transition:
-    transform 0.3s,
-    opacity 0.5s,
-    margin-bottom 0.3s;
+  transition: transform 0.3s, opacity 0.5s, margin-bottom 0.3s;
   z-index: 1;
+
   .time {
     cursor: pointer;
     font-size: 3rem;
@@ -169,101 +176,53 @@ onBeforeUnmount(() => {
       opacity: 0.6;
       margin-left: 6px;
     }
-    &:hover {
-      transform: scale(1.08);
-    }
-    &:active {
-      transform: scale(1);
-    }
+    &:hover { transform: scale(1.08); }
+    &:active { transform: scale(1); }
   }
+
   .date {
     font-size: 1.15rem;
     opacity: 0.8;
     margin: 4px 0px;
     text-shadow: var(--main-text-shadow);
-    .month {
-      &::after {
-        margin: 0 4px;
-        content: "月";
-      }
-    }
-    .day {
-      &::after {
-        margin: 0 8px 0 4px;
-        content: "日";
-      }
-    }
+    .month::after { content: "月"; margin: 0 4px; }
+    .day::after { content: "日"; margin: 0 8px 0 4px; }
   }
+
   .lunar {
     font-size: 0.9rem;
     opacity: 0.6;
     text-shadow: var(--main-text-shadow);
-    .year {
-      &::after {
-        margin-right: 4px;
-        content: "年";
-      }
-    }
+    .year::after { content: "年"; margin-right: 4px; }
   }
+
   .weather {
     opacity: 0.7;
     font-size: 1rem;
     text-shadow: var(--main-text-shadow);
-    .temperature {
-      margin: 0 6px;
+    display: flex;
+    align-items: center;
+
+    .location {
+      margin-right: 8px;
+      &::after {
+        content: "•";
+        margin-left: 8px;
+        opacity: 0.5;
+      }
     }
-    .wind-level {
-      margin-left: 6px;
-    }
+
+    .temperature { margin: 0 6px; }
+    .wind-level { margin-left: 6px; }
   }
 
-  &.focus {
-    transform: translateY(-180px);
-    // transform: translateY(-24vh);
-  }
-  &.box,
-  &.set {
-    // transform: translateY(-220px);
+  // 状态位样式
+  &.focus { transform: translateY(-180px); }
+  &.box, &.set {
     transform: translateY(-34vh);
-    @media (max-width: 478px) {
-      transform: translateY(-32vh);
-    }
+    @media (max-width: 478px) { transform: translateY(-32vh); }
   }
-  &.hidden {
-    transform: translateY(-180px);
-    // transform: translateY(-24vh);
-    opacity: 0;
-  }
-  &.lunar {
-    margin-bottom: 50px;
-  }
-  &.two {
-    padding-bottom: 60px;
-    .time {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      span {
-        line-height: normal;
-      }
-      .separator,
-      .second {
-        display: none;
-      }
-      .hour {
-        &::after {
-          content: "/";
-          font-size: 2rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          line-height: 0;
-          opacity: 0.4;
-          transform: rotate(50deg);
-          margin: 12px 0;
-        }
-      }
-    }
-  }
+  &.hidden { transform: translateY(-180px); opacity: 0; }
+  &.lunar { margin-bottom: 50px; }
 }
 </style>
