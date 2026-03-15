@@ -4,7 +4,7 @@
       <ShortCut />
     </n-tab-pane>
     
-    <n-tab-pane class="no-padding height--full" name="recommend" tab="推荐">
+    <n-tab-pane class="no-padding height--full" name="recommend" tab="每日好剧推荐">
       <DailyRecommend />
     </n-tab-pane>
   </n-tabs>
