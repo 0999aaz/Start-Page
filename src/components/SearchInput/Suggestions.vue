@@ -77,83 +77,57 @@ const set = setStore();
 const status = statusStore();
 const emit = defineEmits(["toSearch"]);
 
-// 搜索关键字
 const searchKeyword = ref(null);
-// 搜索关键字类别
 const searchKeywordType = ref("text");
-// 搜索建议数据
 const searchSuggestionsData = ref([]);
-// 搜索建议元素
 const specialallResultsRef = ref(null);
 const allResultsRef = ref(null);
-// 搜索建议高度
 const suggestionsHeights = ref(0);
-// 接收搜索框内容
+
 const props = defineProps({
-  // 搜索关键字
   keyWord: {
     type: String,
     required: true,
   },
 });
 
-// 搜索框联想
 const keywordsSearch = debounce((val) => {
   const searchValue = val?.trim();
-  // 是否为空
   if (!searchValue || searchValue === "") {
     searchKeyword.value = null;
     return false;
   }
-  // 关闭切换搜索引擎
   status.setEngineChangeStatus(false);
-  // 赋值关键字
   searchKeyword.value = searchValue;
-  // 若为文字
+  
   if (searchKeyword.value) {
-    console.log(val + "的搜索建议");
-    // 调用搜索建议，传入当前搜索引擎类型
     getSearchSuggestions(searchValue, set.searchEngine)
       .then((res) => {
-        console.log(res);
-        // 写入结果，加上 fallback 防呆以避免空值报错
         searchSuggestionsData.value = Array.from(res || []);
-        // 计算高度
         nextTick().then(() => {
           changeSuggestionsHeights();
         });
       })
       .catch((error) => {
-        // 清空结果
         searchSuggestionsData.value = [];
         console.error("处理搜索建议发生错误：", error);
       });
   }
 }, 300);
 
-// 响应键盘事件
 const keyboardEvents = (keyCode, event) => {
   try {
-    // 获取元素
     const mainInput = document.getElementById("main-input");
-    // 38 上 / 40 下
     if (keyCode === 38 || keyCode === 40) {
-      // 阻止默认事件
       event.preventDefault();
       if (mainInput && allResultsRef.value && searchSuggestionsData.value[0]) {
         const suggestionItems = allResultsRef.value.querySelectorAll(".s-result");
         if (suggestionItems.length > 0) {
-          // 获取当前已聚焦的元素
           const focusedItem = document.querySelector(".s-result.focus");
-          // 确定当前聚焦的元素在列表中的索引
           const currentIndex = Array.from(suggestionItems).indexOf(focusedItem);
-          // 移除所有元素的选中状态
           suggestionItems.forEach((item) => item.classList.toggle("focus", false));
-          // 计算下一个要聚焦的元素的索引
           let nextIndex = keyCode === 38 ? currentIndex - 1 : currentIndex + 1;
-          // 确保索引不越界
           nextIndex = Math.max(0, Math.min(nextIndex, suggestionItems.length - 1));
-          // 操作元素
           if (nextIndex !== -1) {
             suggestionItems[nextIndex].classList.toggle("focus", true);
             mainInput.value = suggestionItems[nextIndex].querySelector(".text").textContent;
@@ -161,7 +135,6 @@ const keyboardEvents = (keyCode, event) => {
         }
       }
     }
-    // 13 回车
     if (keyCode === 13) {
       toSearch(mainInput.value, 1);
     }
@@ -171,7 +144,6 @@ const keyboardEvents = (keyCode, event) => {
   }
 };
 
-// 计算元素高度并改变
 const changeSuggestionsHeights = () => {
   try {
     const allResultsHeight = allResultsRef.value?.offsetHeight;
@@ -182,27 +154,21 @@ const changeSuggestionsHeights = () => {
   }
 };
 
-// 触发父组件搜索事件
 const toSearch = (val, type = 1) => {
   emit("toSearch", val, type);
 };
 
-// 监听搜索框变化
 watch(
   () => props.keyWord,
   (val) => {
     if (set.showSuggestions) {
-      // 清空结果
       searchSuggestionsData.value = [];
-      // 判断类型
       searchKeywordType.value = identifyInput(val);
-      // 调用搜索结果
       keywordsSearch(val);
     }
   },
 );
 
-// 暴露方法
 defineExpose({ keyboardEvents });
 </script>
 
