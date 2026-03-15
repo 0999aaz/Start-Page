@@ -11,7 +11,6 @@
       :style="{ height: `${suggestionsHeights}px` }"
     >
       <n-scrollbar style="max-height: 45vh">
-        <!-- 快捷操作 -->
         <Transition
           name="fade"
           mode="out-in"
@@ -19,7 +18,6 @@
           @after-leave="changeSuggestionsHeights"
         >
           <div v-if="searchKeyword !== null" class="special-result" ref="specialallResultsRef">
-            <!-- 快捷翻译 -->
             <div
               v-if="searchKeywordType === 'text'"
               class="s-result"
@@ -28,7 +26,6 @@
               <SvgIcon iconName="icon-translation-two" />
               <span class="text">快捷翻译：{{ keyWord }}</span>
             </div>
-            <!-- 直接访问 -->
             <div
               v-if="searchKeywordType !== 'text'"
               class="s-result"
@@ -41,7 +38,6 @@
             </div>
           </div>
         </Transition>
-        <!-- 搜索建议 -->
         <Transition
           name="fade"
           mode="out-in"
@@ -116,12 +112,12 @@ const keywordsSearch = debounce((val) => {
   // 若为文字
   if (searchKeyword.value) {
     console.log(val + "的搜索建议");
-    // 调用搜索建议
-    getSearchSuggestions(searchValue)
+    // 调用搜索建议，传入当前搜索引擎类型
+    getSearchSuggestions(searchValue, set.searchEngine)
       .then((res) => {
         console.log(res);
-        // 写入结果
-        searchSuggestionsData.value = Array.from(res);
+        // 写入结果，加上 fallback 防呆以避免空值报错
+        searchSuggestionsData.value = Array.from(res || []);
         // 计算高度
         nextTick().then(() => {
           changeSuggestionsHeights();
