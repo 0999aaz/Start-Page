@@ -100,27 +100,30 @@ const loading = ref(true);
 const movies = ref([]);
 const tvShows = ref([]);
 
-// 智能判断悬浮框弹出方向
+// 智能判断悬浮框弹出方向 (修复版)
 const checkHoverPosition = (e) => {
   const card = e.currentTarget;
   const rect = card.getBoundingClientRect();
-  const infoBoxWidth = 260; 
-  if (window.innerWidth - rect.right < infoBoxWidth) {
+  
+  // 核心修复：获取当前整个推荐模块容器的实际边界，而不是全屏幕边界
+  const container = card.closest('.movie-recommend');
+  const containerRect = container.getBoundingClientRect();
+  
+  const infoBoxWidth = 260; // 悬浮框宽度 + 预留间距
+  
+  // 判断：如果卡片右边缘到【容器右边缘】的距离，不够放下悬浮框，就向左弹出
+  if (containerRect.right - rect.right < infoBoxWidth) {
     card.classList.add('pop-left');
   } else {
     card.classList.remove('pop-left');
   }
 };
 
-// 高可用多节点代理轮询函数
 const fetchWithProxy = async (targetUrl) => {
-  // 核心修复：必须将整个目标 URL 进行极其严格的编码，防止 &language=zh-CN 被代理服务器截断
   const encodedUrl = encodeURIComponent(targetUrl);
-  
   const proxies = [
     `https://api.allorigins.win/raw?url=${encodedUrl}`,
     `https://corsproxy.io/?${encodedUrl}`,
-    // 之前就是因为这个节点没做 encode 导致变成了英文
     `https://api.codetabs.com/v1/proxy?quest=${encodedUrl}`
   ];
 
@@ -135,7 +138,6 @@ const fetchWithProxy = async (targetUrl) => {
       if (response.ok) {
         const data = await response.json();
         if (data && data.results && data.results.length > 0) {
-          console.log("代理获取数据成功，已返回中文");
           return data; 
         }
       }
@@ -146,7 +148,6 @@ const fetchWithProxy = async (targetUrl) => {
   throw new Error("所有公共代理均失败");
 };
 
-// 获取影视数据
 const fetchMovies = async () => {
   loading.value = true;
   try {
@@ -154,7 +155,6 @@ const fetchMovies = async () => {
     const apiKey = "ad4a13d21e40800292ac5df94c4f4d91"; 
 
     if (apiKey !== "YOUR_TMDB_API_KEY") {
-      // 明确带上 zh-CN 语言指令
       const movieUrl = `https://api.themoviedb.org/3/trending/movie/day?api_key=${apiKey}&language=zh-CN`;
       const tvUrl = `https://api.themoviedb.org/3/trending/tv/day?api_key=${apiKey}&language=zh-CN`;
       
@@ -173,8 +173,6 @@ const fetchMovies = async () => {
     throw new Error("未配置 API Key");
 
   } catch (error) {
-    console.log("提示：API 请求彻底失败，显示备用精选数据。");
-    // 备用精选数据
     movies.value = [
       { title: "沙丘2", release_date: "2024-02-27", vote_average: 8.3, poster_path: "/1pdfLvkbY9ohJlCjQH2JGjjcEsZ.jpg", overview: "保罗·厄崔迪与契妮和弗雷曼人会合，展开了一场复仇之旅..." },
       { title: "奥本海默", release_date: "2023-07-19", vote_average: 8.6, poster_path: "/rktDFPbfHfUbArZ6OOOKsXcv0Bm.jpg", overview: "讲述了美国“原子弹之父”罗伯特·奥本海默主导制造出世界上第一颗原子弹的故事。" },
@@ -208,7 +206,6 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-/* 这里的样式同样不需要任何变动 */
 .movie-recommend {
   width: 100%;
   height: 100%;
@@ -358,6 +355,7 @@ onMounted(() => {
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
       box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+      z-index: 99; /* 提高层级，防止被遮挡 */
       
       opacity: 0;
       visibility: hidden;
@@ -402,6 +400,7 @@ onMounted(() => {
       }
     }
 
+    /* 当触发 pop-left 时，悬浮框向左方弹出 */
     &.pop-left {
       .info-box {
         left: auto;
