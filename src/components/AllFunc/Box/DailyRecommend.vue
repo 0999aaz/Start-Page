@@ -40,7 +40,7 @@
                 <div class="info-title">{{ item.title || item.name }}</div>
                 <div class="info-date">{{ item.release_date || item.first_air_date || '未知时间' }}</div>
                 <div class="info-overview">
-                  {{ item.overview || '暂无剧情简介。' }}
+                  {{ item.overview || '暂无中文剧情简介。' }}
                 </div>
                 <div class="info-hint">点击去豆瓣搜索 ➔</div>
               </div>
@@ -80,7 +80,7 @@
                 <div class="info-title">{{ item.title || item.name }}</div>
                 <div class="info-date">{{ item.release_date || item.first_air_date || '未知时间' }}</div>
                 <div class="info-overview">
-                  {{ item.overview || '暂无剧情简介。' }}
+                  {{ item.overview || '暂无中文剧情简介。' }}
                 </div>
                 <div class="info-hint">点击去豆瓣搜索 ➔</div>
               </div>
@@ -112,18 +112,20 @@ const checkHoverPosition = (e) => {
   }
 };
 
-// 核心优化：高可用多节点代理轮询函数
+// 高可用多节点代理轮询函数
 const fetchWithProxy = async (targetUrl) => {
-  // 准备3个在国内存活率较高的代理节点
+  // 核心修复：必须将整个目标 URL 进行极其严格的编码，防止 &language=zh-CN 被代理服务器截断
+  const encodedUrl = encodeURIComponent(targetUrl);
+  
   const proxies = [
-    `https://api.codetabs.com/v1/proxy?quest=${targetUrl}`,
-    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+    `https://api.allorigins.win/raw?url=${encodedUrl}`,
+    `https://corsproxy.io/?${encodedUrl}`,
+    // 之前就是因为这个节点没做 encode 导致变成了英文
+    `https://api.codetabs.com/v1/proxy?quest=${encodedUrl}`
   ];
 
   for (let proxy of proxies) {
     try {
-      // 设置 4 秒超时限制，卡死自动换线
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
       
@@ -133,15 +135,15 @@ const fetchWithProxy = async (targetUrl) => {
       if (response.ok) {
         const data = await response.json();
         if (data && data.results && data.results.length > 0) {
-          console.log(`使用代理线路 [${proxy.substring(0, 25)}...] 获取数据成功`);
+          console.log("代理获取数据成功，已返回中文");
           return data; 
         }
       }
     } catch (error) {
-      console.warn(`代理线路请求失败，正在自动切换下一个节点...`);
+      console.warn(`代理节点超时，切换下一个...`);
     }
   }
-  throw new Error("所有公共代理均被墙或访问超时");
+  throw new Error("所有公共代理均失败");
 };
 
 // 获取影视数据
@@ -152,6 +154,7 @@ const fetchMovies = async () => {
     const apiKey = "ad4a13d21e40800292ac5df94c4f4d91"; 
 
     if (apiKey !== "YOUR_TMDB_API_KEY") {
+      // 明确带上 zh-CN 语言指令
       const movieUrl = `https://api.themoviedb.org/3/trending/movie/day?api_key=${apiKey}&language=zh-CN`;
       const tvUrl = `https://api.themoviedb.org/3/trending/tv/day?api_key=${apiKey}&language=zh-CN`;
       
@@ -205,7 +208,7 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-/* 样式部分和上一次一模一样，不需要改动 */
+/* 这里的样式同样不需要任何变动 */
 .movie-recommend {
   width: 100%;
   height: 100%;
