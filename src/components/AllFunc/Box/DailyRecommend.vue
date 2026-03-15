@@ -3,66 +3,147 @@
     <Transition name="fade" mode="out-in">
       <div v-if="loading" class="loading-box">
         <div class="spinner"></div>
-        <span>获取热门影视中...</span>
+        <span>获取全网热门影视中...</span>
       </div>
-      
-      <div v-else class="movie-grid">
-        <div
-          v-for="(item, index) in displayMovies"
-          :key="index"
-          class="movie-card"
-          @click="toDouban(item.title || item.name)"
-        >
-          <div class="poster-box">
-            <img 
-              :src="`https://wsrv.nl/?url=image.tmdb.org/t/p/w500${item.poster_path}`" 
-              class="poster" 
-              referrerpolicy="no-referrer" 
-              alt="poster"
-            />
-            <div class="rating" v-if="item.vote_average > 0">
-              ⭐️ {{ item.vote_average.toFixed(1) }}
+
+      <div v-else class="content-box">
+        
+        <div class="section">
+          <div class="section-header">
+            <span class="icon">🔥</span>
+            <span class="title">热门电影</span>
+          </div>
+          <div class="movie-grid">
+            <div
+              v-for="(item, index) in movies"
+              :key="'m'+index"
+              class="movie-card"
+              @mouseenter="checkHoverPosition"
+              @click="toDouban(item.title || item.name)"
+            >
+              <div class="poster-box">
+                <img 
+                  :src="`https://wsrv.nl/?url=image.tmdb.org/t/p/w500${item.poster_path}`" 
+                  class="poster" 
+                  referrerpolicy="no-referrer" 
+                  alt="poster"
+                />
+                <div class="rating" v-if="item.vote_average > 0">
+                  ⭐️ {{ item.vote_average.toFixed(1) }}
+                </div>
+              </div>
+              <div class="card-title" :title="item.title || item.name">
+                {{ item.title || item.name }}
+              </div>
+
+              <div class="info-box">
+                <div class="info-title">{{ item.title || item.name }}</div>
+                <div class="info-date">{{ item.release_date || item.first_air_date || '未知时间' }}</div>
+                <div class="info-overview">
+                  {{ item.overview || '暂无剧情简介。' }}
+                </div>
+                <div class="info-hint">点击去豆瓣搜索 ➔</div>
+              </div>
             </div>
           </div>
-          <div class="title" :title="item.title || item.name">
-            {{ item.title || item.name }}
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <span class="icon">📺</span>
+            <span class="title">热门剧集</span>
+          </div>
+          <div class="movie-grid">
+            <div
+              v-for="(item, index) in tvShows"
+              :key="'t'+index"
+              class="movie-card"
+              @mouseenter="checkHoverPosition"
+              @click="toDouban(item.title || item.name)"
+            >
+              <div class="poster-box">
+                <img 
+                  :src="`https://wsrv.nl/?url=image.tmdb.org/t/p/w500${item.poster_path}`" 
+                  class="poster" 
+                  referrerpolicy="no-referrer" 
+                  alt="poster"
+                />
+                <div class="rating" v-if="item.vote_average > 0">
+                  ⭐️ {{ item.vote_average.toFixed(1) }}
+                </div>
+              </div>
+              <div class="card-title" :title="item.title || item.name">
+                {{ item.title || item.name }}
+              </div>
+
+              <div class="info-box">
+                <div class="info-title">{{ item.title || item.name }}</div>
+                <div class="info-date">{{ item.release_date || item.first_air_date || '未知时间' }}</div>
+                <div class="info-overview">
+                  {{ item.overview || '暂无剧情简介。' }}
+                </div>
+                <div class="info-hint">点击去豆瓣搜索 ➔</div>
+              </div>
+            </div>
           </div>
         </div>
+
       </div>
     </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted } from "vue";
 
 const loading = ref(true);
+// 分开存储电影和电视剧
 const movies = ref([]);
+const tvShows = ref([]);
 
-// 控制显示数量，展示 8 个刚刚好排成两行或一行
-const displayMovies = computed(() => movies.value.slice(0, 8));
+// 智能判断悬浮框弹出方向（防边缘溢出）
+const checkHoverPosition = (e) => {
+  const card = e.currentTarget;
+  const rect = card.getBoundingClientRect();
+  // 简介卡片宽度设定为 240px，预留 20px 余量
+  const infoBoxWidth = 260; 
+  
+  // 如果卡片距离屏幕右侧的距离不够放下一个简介框，就让它向左弹出
+  if (window.innerWidth - rect.right < infoBoxWidth) {
+    card.classList.add('pop-left');
+  } else {
+    card.classList.remove('pop-left');
+  }
+};
 
 // 获取影视数据
 const fetchMovies = async () => {
   loading.value = true;
   try {
-    // 填入你刚才申请的 API Key
+    // 💡 这里填入你申请的真实 API Key
     const apiKey = "ad4a13d21e40800292ac5df94c4f4d91"; 
 
+    // 不要修改下面这行的判断条件
     if (apiKey !== "YOUR_TMDB_API_KEY") {
-      // 目标 API 地址
-      const targetUrl = `https://api.themoviedb.org/3/trending/all/day?api_key=${apiKey}&language=zh-CN`;
+      // 分别构建电影和电视剧的请求 URL
+      const movieUrl = `https://api.themoviedb.org/3/trending/movie/day?api_key=${apiKey}&language=zh-CN`;
+      const tvUrl = `https://api.themoviedb.org/3/trending/tv/day?api_key=${apiKey}&language=zh-CN`;
       
-      // 核心修复：使用 AllOrigins 代理请求，绕过国内对 TMDB API 的网络屏蔽
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+      // 使用 Promise.all 并发请求，速度提升一倍
+      const [movieRes, tvRes] = await Promise.all([
+        fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(movieUrl)}`),
+        fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(tvUrl)}`)
+      ]);
       
-      const response = await fetch(proxyUrl);
-      const data = await response.json();
+      const movieData = await movieRes.json();
+      const tvData = await tvRes.json();
       
-      if (data.results) {
-        movies.value = data.results;
+      // 各截取前 12 个（完美填满两行或三行），保证界面丰满
+      if (movieData.results && tvData.results) {
+        movies.value = movieData.results.slice(0, 12);
+        tvShows.value = tvData.results.slice(0, 12);
         loading.value = false;
-        return; // 成功获取则直接退出函数
+        return; 
       }
     }
     
@@ -70,23 +151,28 @@ const fetchMovies = async () => {
 
   } catch (error) {
     console.log("提示：API 请求失败或未配置，使用默认精选影视数据。");
-    // 兜底精选数据
+    // 备用精选数据（带上简介测试悬浮效果）
     movies.value = [
-      { title: "沙丘2", poster_path: "/1pdfLvkbY9ohJlCjQH2JGjjcEsZ.jpg", vote_average: 8.3 },
-      { title: "奥本海默", poster_path: "/rktDFPbfHfUbArZ6OOOKsXcv0Bm.jpg", vote_average: 8.6 },
-      { title: "周处除三害", poster_path: "/7QjS9hJ4HDEYv3dC2H8sU2OamY.jpg", vote_average: 8.1 },
-      { title: "繁花", poster_path: "/7x9cWwQ2A1x9LpP1X2BqQ7A2y5.jpg", vote_average: 8.5 },
-      { title: "可怜的东西", poster_path: "/3kOENn7EEXgNqA4v0m50K8R5xJd.jpg", vote_average: 7.9 },
-      { title: "三体(网飞版)", poster_path: "/aMrcHofxN3Xik0Ailz1wMvM9bZ.jpg", vote_average: 7.7 },
-      { title: "坠落的审判", poster_path: "/2Qo1OQ5BqY1Z3kM8Z6H7B2z8Y3.jpg", vote_average: 8.5 },
-      { title: "蜘蛛侠：纵横宇宙", poster_path: "/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg", vote_average: 8.9 }
+      { title: "沙丘2", release_date: "2024-02-27", vote_average: 8.3, poster_path: "/1pdfLvkbY9ohJlCjQH2JGjjcEsZ.jpg", overview: "保罗·厄崔迪与契妮和弗雷曼人会合，展开了一场复仇之旅..." },
+      { title: "奥本海默", release_date: "2023-07-19", vote_average: 8.6, poster_path: "/rktDFPbfHfUbArZ6OOOKsXcv0Bm.jpg", overview: "讲述了美国“原子弹之父”罗伯特·奥本海默主导制造出世界上第一颗原子弹的故事。" },
+      { title: "周处除三害", release_date: "2023-10-06", vote_average: 8.1, poster_path: "/7QjS9hJ4HDEYv3dC2H8sU2OamY.jpg", overview: "通缉犯陈桂林发现自己仅剩半年寿命，决定在死前除掉排在自己前面的两大通缉犯。" },
+      { title: "可怜的东西", release_date: "2023-12-07", vote_average: 7.9, poster_path: "/3kOENn7EEXgNqA4v0m50K8R5xJd.jpg", overview: "贝拉·巴斯特是一个被不合常规的科学家救活的年轻女子，她踏上了一场奇幻的冒险。" },
+      { title: "坠落的审判", release_date: "2023-08-23", vote_average: 8.5, poster_path: "/2Qo1OQ5BqY1Z3kM8Z6H7B2z8Y3.jpg", overview: "一名作家试图证明自己并非杀害丈夫的凶手，法庭对这段婚姻进行了深度剖析。" },
+      { title: "蜘蛛侠：纵横宇宙", release_date: "2023-05-31", vote_average: 8.9, poster_path: "/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg", overview: "迈尔斯·莫拉莱斯穿梭于多元宇宙，遭遇了一支负责保护多重宇宙存在的蜘蛛侠精英小队。" }
+    ];
+    tvShows.value = [
+      { name: "幕府将军", first_air_date: "2024-02-27", vote_average: 8.7, poster_path: "/sBqCj8e0QhA2jK9xQ7qI56K8S2R.jpg", overview: "1600年的日本，两位野心勃勃的男人在权力斗争中走向命运交汇点。" },
+      { name: "三体 (网飞版)", first_air_date: "2024-03-21", vote_average: 7.7, poster_path: "/aMrcHofxN3Xik0Ailz1wMvM9bZ.jpg", overview: "人类与一个即将毁灭的外星文明建立联系，并面临着被入侵的危机。" },
+      { name: "繁花", first_air_date: "2023-12-27", vote_average: 8.5, poster_path: "/7x9cWwQ2A1x9LpP1X2BqQ7A2y5.jpg", overview: "九十年代的上海处处是机遇与希望。青年阿宝凭借改革开放的春风闯出了一片天。" },
+      { name: "辐射", first_air_date: "2024-04-10", vote_average: 8.5, poster_path: "/6hL2T1gY189I1dJ4Z5J3b4M6e7n.jpg", overview: "核战爆发200年后，一个从小在避难所长大的女孩被迫回到地表废土世界。" },
+      { name: "绝命毒师", first_air_date: "2008-01-20", vote_average: 9.6, poster_path: "/30erzlzIOtOK3k3T3BAl1GiVMP1.jpg", overview: "一位高中化学老师确诊绝症后，为了给家人留下财产，走上了制造冰毒的道路。" },
+      { name: "怪奇物语", first_air_date: "2016-07-15", vote_average: 8.6, poster_path: "/49WJfeN0moxb9IPfGn8TJqDfIj.jpg", overview: "印第安纳州一个小镇上，一个男孩神秘失踪，他的朋友和家人在寻找他的过程中卷入超自然事件。" }
     ];
   } finally {
     loading.value = false;
   }
 };
 
-// 点击卡片：带上电影名字跳转到豆瓣搜索页面
 const toDouban = (keyword) => {
   if (keyword) {
     window.open(`https://search.douban.com/movie/subject_search?search_text=${encodeURIComponent(keyword)}`, "_blank");
@@ -102,15 +188,20 @@ onMounted(() => {
 .movie-recommend {
   width: 100%;
   height: 100%;
-  padding: 16px; 
+  padding: 16px 20px; 
   box-sizing: border-box;
   background-color: var(--main-background-light-color);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   overflow-y: auto; 
+  overflow-x: hidden; // 防止因为卡片动画产生横向滚动条
 
   &::-webkit-scrollbar {
-    display: none;
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
   }
 
   .loading-box {
@@ -118,7 +209,7 @@ onMounted(() => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 160px;
+    height: 100%;
     color: var(--main-text-color);
     font-size: 14px;
     
@@ -133,32 +224,66 @@ onMounted(() => {
     }
   }
 
+  .content-box {
+    display: flex;
+    flex-direction: column;
+    gap: 32px; // 电影和电视剧两大块的间距
+  }
+
+  .section {
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      
+      .icon {
+        font-size: 18px;
+      }
+      .title {
+        font-size: 16px;
+        font-weight: bold;
+        color: var(--main-text-color);
+        letter-spacing: 1px;
+      }
+    }
+  }
+
   .movie-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 16px 12px; 
+    gap: 20px 14px; 
     justify-items: center;
   }
 
   .movie-card {
+    position: relative; // 极其重要：作为浮动信息框的定位基准
     width: 100%;
     display: flex;
     flex-direction: column;
     gap: 8px;
     cursor: pointer;
     transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-
+    
+    // 鼠标悬停时的状态
     &:hover {
       transform: translateY(-5px); 
+      z-index: 10; // 提升层级，防止被旁边卡片遮挡
       
       .poster-box {
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); 
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4); 
         .poster {
           transform: scale(1.05); 
         }
       }
-      .title {
+      .card-title {
         color: #ffac2d; 
+      }
+      // 触发悬浮框显示
+      .info-box {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
       }
     }
 
@@ -167,7 +292,7 @@ onMounted(() => {
       width: 100%;
       aspect-ratio: 2 / 3; 
       border-radius: 8px;
-      overflow: hidden;
+      overflow: hidden; // 海报不能溢出圆角
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
       transition: box-shadow 0.3s ease;
 
@@ -189,11 +314,10 @@ onMounted(() => {
         border-radius: 6px;
         backdrop-filter: blur(4px);
         font-weight: bold;
-        letter-spacing: 0.5px;
       }
     }
 
-    .title {
+    .card-title {
       font-size: 13px;
       color: var(--main-text-color);
       font-weight: 500;
@@ -204,6 +328,74 @@ onMounted(() => {
       text-overflow: ellipsis;
       transition: color 0.3s ease;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 剧情简介毛玻璃悬浮框 (核心动画与定位) */
+    .info-box {
+      position: absolute;
+      top: 0;
+      /* 默认向右弹出：卡片宽度 + 12px间距 */
+      left: calc(100% + 12px); 
+      width: 240px;
+      padding: 16px;
+      box-sizing: border-box;
+      background: rgba(30, 30, 30, 0.85); // 暗色半透明
+      backdrop-filter: blur(12px) saturate(150%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+      
+      // 初始隐藏状态
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px) scale(0.95);
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none; // 防止悬浮框自己干扰鼠标事件
+
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      color: #fff;
+      text-align: left;
+
+      .info-title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #ffac2d;
+      }
+      .info-date {
+        font-size: 12px;
+        color: #aaa;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 8px;
+        margin-bottom: 4px;
+      }
+      .info-overview {
+        font-size: 13px;
+        line-height: 1.6;
+        color: #eee;
+        // 限制最多显示 7 行，超出显示省略号
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 7;
+        overflow: hidden;
+      }
+      .info-hint {
+        margin-top: auto;
+        padding-top: 8px;
+        font-size: 12px;
+        color: #888;
+        font-style: italic;
+        text-align: right;
+      }
+    }
+
+    /* 当卡片在屏幕右侧边缘时，触发JS添加的 pop-left 类，改变弹出方向 */
+    &.pop-left {
+      .info-box {
+        left: auto;
+        right: calc(100% + 12px); // 向左弹出
+      }
     }
   }
 
