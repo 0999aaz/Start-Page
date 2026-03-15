@@ -19,6 +19,22 @@
         
         <Transition name="fade">
           <div
+            class="top-left-menu"
+            title="上传本地图片作为壁纸"
+            v-show="status.siteStatus === 'normal' || status.siteStatus === 'focus'"
+            @click.stop="triggerBgUpload"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            <input type="file" id="bg-upload-input" accept="image/*" style="display: none" @change="handleBgUpload" />
+          </div>
+        </Transition>
+
+        <Transition name="fade">
+          <div
             class="top-right-menu"
             title="打开捷径与便签"
             v-show="status.siteStatus === 'normal' || status.siteStatus === 'focus'"
@@ -126,6 +142,62 @@ const changeThemeType = (val) => {
   htmlElement.setAttribute("theme", themeType);
 };
 
+// 触发本地图片上传
+const triggerBgUpload = () => {
+  document.getElementById("bg-upload-input").click();
+};
+
+// 处理图片上传并自动压缩
+const handleBgUpload = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      
+      let width = img.width;
+      let height = img.height;
+      const MAX_WIDTH = 1920;
+      const MAX_HEIGHT = 1080;
+      
+      // 等比例缩放压缩，防止存入缓存时超出最大限制
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // 转换为 base64
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+
+      try {
+        set.uploadedBackground = dataUrl;
+        set.backgroundType = 5;
+        window.$message.success("壁纸上传成功！如果想恢复，可以前往“设置”中修改。");
+      } catch (err) {
+        window.$message.error("图片数据过大保存失败，请尝试更小的图片！");
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = ''; // 允许重复上传同一张图片
+};
+
 // 监听颜色变化
 watch(
   () => set.themeType,
@@ -210,8 +282,35 @@ onMounted(() => {
       }
     }
   }
+
+  /* 新增：左上角图片上传菜单 */
+  .top-left-menu {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    cursor: pointer;
+    color: var(--main-text-color);
+    opacity: 0.6;
+    z-index: 99;
+    transition: opacity 0.3s, background-color 0.3s, transform 0.3s;
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:hover {
+      opacity: 1;
+      backdrop-filter: blur(20px);
+      background-color: var(--main-background-light-color);
+      transform: scale(1.05);
+    }
+    
+    &:active {
+      transform: scale(0.95);
+    }
+  }
   
-  /* 新增：右上角三个点菜单的样式 */
   .top-right-menu {
     position: fixed;
     top: 20px;
