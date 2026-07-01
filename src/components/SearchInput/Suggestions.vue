@@ -108,7 +108,7 @@ const searchKeywordType = ref("text");
 const searchSuggestionsData = ref([]);
 const specialallResultsRef = ref(null);
 const allResultsRef = ref(null);
-const historyResultsRef = ref(null); // 新增：用于获取历史记录高度
+const historyResultsRef = ref(null); 
 const suggestionsHeights = ref(0);
 
 const props = defineProps({
@@ -150,7 +150,6 @@ const keyboardEvents = (keyCode, event) => {
     const mainInput = document.getElementById("main-input");
     if (keyCode === 38 || keyCode === 40) {
       event.preventDefault();
-      // 在历史记录与搜索推荐都支持键盘上下选取
       const allResultsWrapper = allResultsRef.value || historyResultsRef.value; 
       const currentData = searchSuggestionsData.value[0] || set.searchHistory[0];
 
@@ -182,8 +181,7 @@ const changeSuggestionsHeights = () => {
   try {
     const allResultsHeight = allResultsRef.value?.offsetHeight;
     const specialallResultsHeight = specialallResultsRef.value?.offsetHeight;
-    const historyResultsHeight = historyResultsRef.value?.offsetHeight; // 新增
-    // 增加历史记录的高度计算
+    const historyResultsHeight = historyResultsRef.value?.offsetHeight; 
     suggestionsHeights.value = (specialallResultsHeight || 0) + (allResultsHeight || 0) + (historyResultsHeight || 0);
   } catch (error) {
     console.error("计算高度时出现错误：" + error);
@@ -194,6 +192,7 @@ const toSearch = (val, type = 1) => {
   emit("toSearch", val, type);
 };
 
+// 监听输入框文本变化
 watch(
   () => props.keyWord,
   (val) => {
@@ -201,6 +200,19 @@ watch(
       searchSuggestionsData.value = [];
       searchKeywordType.value = identifyInput(val);
       keywordsSearch(val);
+    }
+  },
+);
+
+// 【新增核心优化】：监听搜索框激活状态
+// 一旦点击打开搜索框（status变为focus），如果框内无内容，立刻计算并展开历史记录的高度
+watch(
+  () => status.siteStatus,
+  (val) => {
+    if (val === "focus") {
+      nextTick().then(() => {
+        changeSuggestionsHeights();
+      });
     }
   },
 );
@@ -230,7 +242,6 @@ defineExpose({ keyboardEvents });
   .special-result,
   .history-result {
     
-    // 历史记录头部样式
     .history-header {
       display: flex;
       justify-content: space-between;
