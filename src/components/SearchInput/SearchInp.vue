@@ -1,5 +1,4 @@
 <template>
-  <!-- 搜索框 -->
   <div
     :class="[
       'search-input',
@@ -8,7 +7,6 @@
     ]"
     @click.stop
   >
-    <!-- 搜索框遮罩 -->
     <div
       v-if="status.siteStatus === 'focus'"
       class="mask"
@@ -19,7 +17,6 @@
         }
       "
     />
-    <!-- 主搜索框 -->
     <div class="all" ref="searchAllRef" @animationend="inputAnimationEnd">
       <div class="engine" title="切换搜索引擎" @click="changeEngine">
         <Transition name="fade" mode="out-in">
@@ -49,9 +46,7 @@
         <SvgIcon iconName="icon-search" className="search" />
       </div>
     </div>
-    <!-- 搜索引擎切换 -->
     <SearchEngine />
-    <!-- 搜索建议 -->
     <Suggestions ref="suggestionsRef" :keyWord="status.searchInputValue" @toSearch="toSearch" />
   </div>
 </template>
@@ -101,6 +96,9 @@ const toSearch = (val, type = 1) => {
   };
   // 是否为空
   if (searchValue) {
+    // 【新增】：将当前搜索词加入历史记录
+    set.addSearchHistory(searchValue);
+
     const searchFormat = encodeURIComponent(searchValue);
     console.log("前往搜索：" + searchValue, type);
     switch (type) {
