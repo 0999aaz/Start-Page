@@ -3,14 +3,38 @@
     <div
       v-if="
         set.showSuggestions &&
-        searchKeyword !== null &&
         status.siteStatus === 'focus' &&
-        !status.engineChangeStatus
+        !status.engineChangeStatus &&
+        (searchKeyword !== null || (set.searchHistory && set.searchHistory.length > 0))
       "
       class="suggestions"
       :style="{ height: `${suggestionsHeights}px` }"
     >
       <n-scrollbar style="max-height: 45vh">
+        
+        <Transition
+          name="fade"
+          mode="out-in"
+          @after-enter="changeSuggestionsHeights"
+          @after-leave="changeSuggestionsHeights"
+        >
+          <div v-if="!searchKeyword && set.searchHistory?.length > 0" class="history-result" ref="historyResultsRef">
+            <div class="history-header">
+              <span class="title">历史记录</span>
+              <span class="clear" @click.stop="set.clearSearchHistory()">清空</span>
+            </div>
+            <div
+              v-for="item in set.searchHistory"
+              class="s-result"
+              :key="item"
+              @click.stop="toSearch(item, 1)"
+            >
+              <SvgIcon iconName="icon-search" className="search" />
+              <span class="text">{{ item }}</span>
+            </div>
+          </div>
+        </Transition>
+
         <Transition
           name="fade"
           mode="out-in"
@@ -38,6 +62,7 @@
             </div>
           </div>
         </Transition>
+
         <Transition
           name="fade"
           mode="out-in"
@@ -60,6 +85,7 @@
             </div>
           </div>
         </Transition>
+
       </n-scrollbar>
     </div>
   </Transition>
@@ -82,6 +108,7 @@ const searchKeywordType = ref("text");
 const searchSuggestionsData = ref([]);
 const specialallResultsRef = ref(null);
 const allResultsRef = ref(null);
+const historyResultsRef = ref(null); // 新增：用于获取历史记录高度
 const suggestionsHeights = ref(0);
 
 const props = defineProps({
@@ -95,6 +122,9 @@ const keywordsSearch = debounce((val) => {
   const searchValue = val?.trim();
   if (!searchValue || searchValue === "") {
     searchKeyword.value = null;
+    nextTick().then(() => {
+      changeSuggestionsHeights(); // 清空搜索词时也要更新高度
+    });
     return false;
   }
   status.setEngineChangeStatus(false);
@@ -120,8 +150,12 @@ const keyboardEvents = (keyCode, event) => {
     const mainInput = document.getElementById("main-input");
     if (keyCode === 38 || keyCode === 40) {
       event.preventDefault();
-      if (mainInput && allResultsRef.value && searchSuggestionsData.value[0]) {
-        const suggestionItems = allResultsRef.value.querySelectorAll(".s-result");
+      // 在历史记录与搜索推荐都支持键盘上下选取
+      const allResultsWrapper = allResultsRef.value || historyResultsRef.value; 
+      const currentData = searchSuggestionsData.value[0] || set.searchHistory[0];
+
+      if (mainInput && allResultsWrapper && currentData) {
+        const suggestionItems = allResultsWrapper.querySelectorAll(".s-result");
         if (suggestionItems.length > 0) {
           const focusedItem = document.querySelector(".s-result.focus");
           const currentIndex = Array.from(suggestionItems).indexOf(focusedItem);
@@ -148,7 +182,9 @@ const changeSuggestionsHeights = () => {
   try {
     const allResultsHeight = allResultsRef.value?.offsetHeight;
     const specialallResultsHeight = specialallResultsRef.value?.offsetHeight;
-    suggestionsHeights.value = (specialallResultsHeight || 0) + (allResultsHeight || 0);
+    const historyResultsHeight = historyResultsRef.value?.offsetHeight; // 新增
+    // 增加历史记录的高度计算
+    suggestionsHeights.value = (specialallResultsHeight || 0) + (allResultsHeight || 0) + (historyResultsHeight || 0);
   } catch (error) {
     console.error("计算高度时出现错误：" + error);
   }
@@ -191,7 +227,28 @@ defineExpose({ keyboardEvents });
   z-index: 1;
 
   .all-result,
-  .special-result {
+  .special-result,
+  .history-result {
+    
+    // 历史记录头部样式
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px 4px;
+      font-size: 13px;
+      opacity: 0.6;
+      
+      .clear {
+        cursor: pointer;
+        transition: opacity 0.3s;
+        &:hover {
+          opacity: 1;
+          color: var(--main-text-hover-color, #ff4d4f);
+        }
+      }
+    }
+
     .s-result {
       cursor: pointer;
       box-sizing: border-box;
