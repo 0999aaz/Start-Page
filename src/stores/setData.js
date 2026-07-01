@@ -43,6 +43,8 @@ const useSetDataStore = defineStore("setData", {
       // 跳转方式
       // open 新标签页 / href 当前页面
       urlJumpType: "open",
+      // 搜索历史记录
+      searchHistory: [],
     };
   },
   actions: {
@@ -58,6 +60,22 @@ const useSetDataStore = defineStore("setData", {
         return;
       }
       this.searchEngine = value;
+    },
+    // 添加历史记录方法
+    addSearchHistory(keyword) {
+      if (!keyword) return;
+      // 去重：如果已有该关键字，先移除
+      this.searchHistory = this.searchHistory.filter((item) => item !== keyword);
+      // 添加到数组最前面
+      this.searchHistory.unshift(keyword);
+      // 限制最多保存 10 条历史记录
+      if (this.searchHistory.length > 10) {
+        this.searchHistory.pop();
+      }
+    },
+    // 清空历史记录方法
+    clearSearchHistory() {
+      this.searchHistory = [];
     },
     // 恢复数据
     recoverSiteData(data) {
