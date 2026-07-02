@@ -135,10 +135,13 @@ const mainPressKeyboard = (event) => {
   }
 };
 
-// 根据主题类别更改
+// 根据主题类别更改 (做了兼容修改，支持 custom 属性映射)
 const changeThemeType = (val) => {
   const htmlElement = document.querySelector("html");
-  const themeType = val === "light" ? "light" : "dark";
+  let themeType = "light";
+  if (val === "dark") themeType = "dark";
+  else if (val === "custom") themeType = "custom"; // 增加对自定义模式的属性标识
+  
   htmlElement.setAttribute("theme", themeType);
 };
 
@@ -198,14 +201,26 @@ const handleBgUpload = (event) => {
   event.target.value = ''; // 允许重复上传同一张图片
 };
 
-// 监听颜色变化
+// 【新增核心修改】：监听主题状态变化，并应用全局 CSS 变量
 watch(
   () => set.themeType,
-  (val) => changeThemeType(val),
+  (val) => {
+    changeThemeType(val);
+    set.applyTheme(); // 将色彩配置写入全局变量
+  },
+);
+
+// 【新增核心修改】：监听壁纸模糊度的变化，使滑块调节能实时映射到全局变量
+watch(
+  () => set.backgroundBlur,
+  () => {
+    set.applyTheme();
+  }
 );
 
 onMounted(() => {
   changeThemeType(set.themeType);
+  set.applyTheme(); // 页面加载时立即初始化应用 CSS 变量主题
 });
 </script>
 
@@ -283,7 +298,7 @@ onMounted(() => {
     }
   }
 
-  /* 新增：左上角图片上传菜单 */
+  /* 左上角图片上传菜单 */
   .top-left-menu {
     position: fixed;
     top: 20px;
